@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>マインスイーパー</title>
+    <style>
+      table {
+        border-collapse: collapse;
+      }
+      td {
+        border: 1px solid #bbb;
+        text-align: center;
+        line-height: 20px;
+        width: 50px;
+        height: 50px;
+        background: #888;
+      }
+      td.opened {
+        background: white;
+      }
+      td.flag {
+        background: red;
+      }
+      td.question {
+        background: orange;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- ユーザー入力フォーム -->
+    <form id="form">
+      <input placeholder="横線" id="row" size="5" />
+      <input placeholder="縦線." id="cell" size="5" />
+      <input placeholder="地雷" id="mine" size="5" />
+      <button>生成</button>
+    </form>
+
+    <!-- タイマー表示 -->
+    <div id="timer">0秒</div>
+
+    <!-- マインスイーパーテーブル -->
+    <table id="table">
+      <tbody></tbody>
+    </table>
+
+    <!-- ゲームの結果表示 -->
+    <div id="result"></div>
+
+    <script>
+      // HTML要素の参照を取得
+      const $form = document.querySelector("#form"); // フォーム要素
+      const $timer = document.querySelector("#timer"); // タイマー要素
+      const $tbody = document.querySelector("#table tbody"); // マインスイーパーテーブルのtbody要素
+      const $result = document.querySelector("#result"); // 結果表示要素
+
+      // ゲームデータの初期化
+      let row; // 横線
+      let cell; // 縦線
+      let mine; // 地雷
+      const CODE = {
+        NORMAL: -1, // 通常のマス
+        QUESTION: -2, // 疑問符が付いたマス
+        FLAG: -3, // 旗が立てられたマス
+        QUESTION_MINE: -4, // 疑問符が付いた地雷のマス
+        FLAG_MINE: -5, // 旗が立てられた地雷のマス
+        MINE: -6, // 地雷のマス
+        OPENED: 0, // 開かれたマス（0以上ならすべて開いたことを表す）
+      };
+      let data; // ゲームデータの配列
+      let openCount = 0; // 開かれたマスの数
+      let startTime = new Date(); // ゲーム開始時刻
+      let interval; // タイマー用の間隔
+
+      function onSubmit(event) {
+        event.preventDefault();
+        // フォームから入力値を取得
+        row = parseInt(event.target.row.value); // 横線
+        cell = parseInt(event.target.cell.value); // 縦線
+        mine = parseInt(event.target.mine.value); // 地雷の数
+
+        // マインスイーパーテーブルを描画
+        drawTable();
+
+        // ゲーム開始時刻を設定
+        startTime = new Date();
+
+        // 1秒ごとにタイマーを更新
+        interval = setInterval(() => {
+          const time = Math.floor((new Date() - startTime) / 1000);
+          $timer.textContent = `${time}秒`;
+        }, 1000);
+      }
+
+      // フォームの送信イベントを監視
+      $form.addEventListener("submit", onSubmit);
+
+      // 地雷をランダムに配置する関数
+      function plantMine() {
+        // 全てのマスの候補となる配列を生成
+        const candidate = Array(row * cell)
+          .fill()
+          .map((arr, i) => {
+            return i;
+          });
+
+        // シャッフルされたマスの配列を生成
+        const shuffle = [];
+        while (candidate.length > row * cell - mine) {
+          const chosen = candidate.splice(
+            Math.floor(Math.random() * candidate.length),
+            1
+          )[0];
+          shuffle.push(chosen);
+        }
+
+        // ゲームデータの配列を初期化
+        const data = [];
+        for (let i = 0; i < row; i++) {
+          const rowData = [];
+          data.push(rowData);
+          for (let j = 0; j < cell; j++) {
+            rowData.push(CODE.NORMAL);
+          }
+        }
+
+        // シャッフルされたマスに地雷を配置
+        for (let k = 0; k < shuffle.length; k++) {
+          const ver = Math.floor(shuffle[k] / cell);
+          const hor = shuffle[k] % cell;
+          data[ver][hor] = CODE.MINE;
+        }
+
+        return data;
+      }
+
+      // 右クリック時の処理
+      function onRightClick(event) {
+        event.preventDefault();
+        const target = event.target;
+        const rowIndex = target.parentNode.rowIndex;
+        const cellIndex = target.cellIndex;
+        const cellData = data[rowIndex][cellIndex];
+
+        if (cellData === CODE.MINE) {
+          // 地雷のマスなら
+          data[rowIndex][cellIndex] = CODE.QUESTION_MINE; // 疑問符地雷に変更
+          target.className = "question";
+          target.textContent = "?";
+        } else if (cellData === CODE.QUESTION_MINE) {
+          // 疑問符地雷のマスなら
+          data[rowIndex][cellIndex] = CODE.FLAG_MINE; // 旗地雷に変更
+          target.className = "flag";
+          target.textContent = "!";
+        } else if (cellData === CODE.FLAG_MINE) {
+          // 旗地雷のマスなら
+          data[rowIndex][cellIndex] = CODE.MINE; // 地雷に変更
+          target.className = "";
+          target.textContent = "";
+        } else if (cellData === CODE.NORMAL) {
+          // 閉じたマスなら
+          data[rowIndex][cellIndex] = CODE.QUESTION; // 疑問符に変更
+          target.className = "question";
+          target.textContent = "?";
+        } else if (cellData === CODE.QUESTION) {
+          // 疑問符のマスなら
+          data[rowIndex][cellIndex] = CODE.FLAG; // 旗に変更
+          target.className = "flag";
+          target.textContent = "!";
+        } else if (cellData === CODE.FLAG) {
+          // 旗のマスなら
+          data[rowIndex][cellIndex] = CODE.NORMAL; // 閉じたマスに変更
+          target.className = "";
+          target.textContent = "";
+        }
+      }
+
+      // 周囲の地雷の数を数える関数
+      function countMine(rowIndex, cellIndex) {
+        const mines = [CODE.MINE, CODE.QUESTION_MINE, CODE.FLAG_MINE];
+        let count = 0;
+
+        for (let i = rowIndex - 1; i <= rowIndex + 1; i++) {
+          for (let j = cellIndex - 1; j <= cellIndex + 1; j++) {
+            if (
+              i >= 0 &&
+              i < row &&
+              j >= 0 &&
+              j < cell &&
+              mines.includes(data[i]?.[j])
+            ) {
+              count++;
+            }
+          }
+        }
+
+        return count;
+      }
+
+      // マスを開く処理
+      function open(rowIndex, cellIndex) {
+        if (data[rowIndex]?.[cellIndex] >= CODE.OPENED) return;
+        const target = $tbody.children[rowIndex]?.children[cellIndex];
+        if (!target) {
+          return;
+        }
+        const count = countMine(rowIndex, cellIndex);
+        target.textContent = count || "";
+        target.className = "opened";
+        data[rowIndex][cellIndex] = count;
+        openCount++;
+        console.log(openCount);
+        if (openCount === row * cell - mine) {
+          const time = (new Date() - startTime) / 1000;
+          clearInterval(interval);
+          $tbody.removeEventListener("contextmenu", onRightClick);
+          $tbody.removeEventListener("click", onLeftClick);
+          setTimeout(() => {
+            alert(`勝利しました！${time}秒かかりました。`);
+          }, 0);
+        }
+        return count;
+      }
+
+      // 周囲のマスを再帰的に開く処理
+      function openAround(rI, cI) {
+        setTimeout(() => {
+          const count = open(rI, cI);
+          if (count === 0) {
+            openAround(rI - 1, cI - 1);
+            openAround(rI - 1, cI);
+            openAround(rI - 1, cI + 1);
+            openAround(rI, cI - 1);
+            openAround(rI, cI + 1);
+            openAround(rI + 1, cI - 1);
+            openAround(rI + 1, cI);
+            openAround(rI + 1, cI + 1);
+          }
+        }, 0);
+      }
+
+      // 左クリック時の処理
+      function onLeftClick(event) {
+        const target = event.target;
+        const rowIndex = target.parentNode.rowIndex;
+        const cellIndex = target.cellIndex;
+        const cellData = data[rowIndex][cellIndex];
+
+        if (cellData === CODE.NORMAL) {
+          // 閉じたマスなら
+          openAround(rowIndex, cellIndex);
+        } else if (cellData === CODE.MINE) {
+          // 地雷のマスなら
+          target.textContent = "ぱあん";
+          target.className = "opened mine";
+          clearInterval(interval);
+          $tbody.removeEventListener("contextmenu", onRightClick);
+          $tbody.removeEventListener("click", onLeftClick);
+          setTimeout(() => {
+            alert("ゲームオーバー！");
+          }, 0);
+        }
+      }
+
+      // マインスイーパーテーブルを描画する関数
+      function drawTable() {
+        // テーブルをクリア
+        $tbody.innerHTML = "";
+
+        // 地雷を配置
+        data = plantMine();
+
+        // マスを生成してテーブルに追加
+        for (let i = 0; i < row; i++) {
+          const tr = document.createElement("tr");
+          const rowData = [];
+          for (let j = 0; j < cell; j++) {
+            const td = document.createElement("td");
+            td.addEventListener("contextmenu", onRightClick);
+            td.addEventListener("click", onLeftClick);
+            tr.appendChild(td);
+            rowData.push(CODE.NORMAL);
+          }
+          $tbody.appendChild(tr);
+        }
+      }
+    </script>
+  </body>
+</html>
