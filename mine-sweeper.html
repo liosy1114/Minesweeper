@@ -39,6 +39,13 @@
     <!-- タイマー表示 -->
     <div id="timer">0秒</div>
 
+    <!-- おすすめ難易度ボタン -->
+    <div>
+      <button onclick="setBeginnerDifficulty()">初心者</button>
+      <button onclick="setIntermediateDifficulty()">中級</button>
+      <button onclick="setExpertDifficulty()">上級</button>
+    </div>
+
     <!-- マインスイーパーテーブル -->
     <table id="table">
       <tbody></tbody>
@@ -237,6 +244,25 @@
             openAround(rI + 1, cI + 1);
           }
         }, 0);
+      }
+
+      // おすすめ難易度ボタンのクリックイベントハンドラ
+      function setBeginnerDifficulty() {
+        document.getElementById("row").value = 8;
+        document.getElementById("cell").value = 8;
+        document.getElementById("mine").value = 10;
+      }
+
+      function setIntermediateDifficulty() {
+        document.getElementById("row").value = 12;
+        document.getElementById("cell").value = 12;
+        document.getElementById("mine").value = 20;
+      }
+
+      function setExpertDifficulty() {
+        document.getElementById("row").value = 16;
+        document.getElementById("cell").value = 16;
+        document.getElementById("mine").value = 40;
       }
 
       // 左クリック時の処理
